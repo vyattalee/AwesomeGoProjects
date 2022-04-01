@@ -1,0 +1,53 @@
+name: CI
+on: 
+  push:
+    paths-ignore:
+      # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions
+      - "docs/**"
+      - '**.md'
+      - '**.txt'
+      - 'LICENSE'
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - '**.md'
+      - '**.txt'
+      - 'LICENSE'
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - platform: ubuntu-latest
+            bootstrap_script: ./script/bootstrap.sh
+            bali_args: ./bali -p
+            bali_suffix: tar.gz
+          - platform: macos-latest
+            bootstrap_script: ./script/bootstrap.sh
+            bali_args: ./bali -p
+            bali_suffix: tar.gz
+          - platform: windows-latest
+            bootstrap_script: script/bootstrap.bat
+            bali_args: ./bali.exe -z
+            bali_suffix: zip
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.17.x'
+      - name: Bootstrap Bali
+        run: ${{ matrix.bootstrap_script }}
+      - name: Upload release
+        uses: svenstaro/upload-release-action@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          file_glob: true
+          file: bali-*.${{ matrix.bali_suffix }}
+          tag: ${{ github.ref }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          overwrite: true
